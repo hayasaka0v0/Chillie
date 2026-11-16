@@ -1875,6 +1875,18 @@ data class StudyUiState(...) {
 - `Flashcard?` → có thể null khi index vượt list; `getOrNull` không crash.
 - Property trong thân `{}` không tham gia `copy`/`equals`, đúng ý vì đây là giá trị suy ra.
 
+### `presentation/cardlist/CardListUiState.kt` (học viên tự viết)
+```kotlin
+data class CardListUiState(
+    val cards: List<Flashcard> = emptyList()
+)
+```
+- Chỉ lưu thứ **không tính ra được**: số thẻ (`cards.size`), danh sách trống (`cards.isEmpty()`) đều suy ra từ `cards`.
+- `= emptyList()` → tạo được `CardListUiState()` không cần tham số, làm giá trị ban đầu cho `MutableStateFlow`.
+
+### `presentation/cardlist/CardListViewModel.kt` (học viên tự viết)
+Bản rút gọn của `StudyViewModel`: chỉ có `_uiState`/`uiState`, `init { collect }` đổ `cards` vào state, và `Factory`. Không có hàm sự kiện vì màn danh sách chưa có nút nào. Giải thích từng dòng: xem `StudyViewModel.kt` ngay dưới.
+
 ### `presentation/study/StudyViewModel.kt`
 ```kotlin
 class StudyViewModel(

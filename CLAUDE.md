@@ -19,6 +19,10 @@ Khi sửa/thêm file trong `app/src`, cập nhật mục 26 cho khớp với cod
 
 Dựng lại đúng luồng và giao diện của bản thiết kế "Flashcard App UI" (canvas Claude Design, 4 màn: Library → Deck detail → Flashcard → Session complete): https://claude.ai/artifact/2KACQe3Z6buJKv3AqYBBVH. Vừa làm vừa học; người dùng nhắm tới việc làm Android dev Fresher/Junior nên kiến trúc (MVVM, repository, use case) vẫn cần nắm.
 
+Tiến độ (theo kế hoạch `docs/superpowers/plans/2026-11-19-flashcard-app.md`): Task 1–2 đã xong. Tiếp theo: người dùng trả lời 5 câu kiểm tra của Task 2 (enum, `when`, sealed + smart cast, `?:`, SM-2 khi bấm Again), rồi làm Task 3. Cập nhật dòng này sau mỗi task.
+
+Git: làm trên nhánh `dev`, push lên `origin/dev`. Commit KHÔNG thêm dòng `Co-Authored-By` của Claude. Hết mỗi task chỉ commit/push khi người dùng đồng ý.
+
 Quy tắc dạy (bắt buộc):
 - KHÔNG coi người dùng đã biết lambda, higher-order function, function reference (`::`), trailing lambda, `it`. Gặp chúng trong code thì tách ra giải thích từng phần cú pháp.
 - Giải thích TỪ NỀN LÊN, không nói như điều hiển nhiên: mỗi khái niệm phải được định nghĩa (bằng ví dụ đời thường + 1 đoạn Kotlin nhỏ chạy được) TRƯỚC khi dùng nó để giải thích khái niệm khác. Một thuật ngữ chưa giải thích (annotation, receiver/`this`, named argument, immutable, `copy`, scope function, extension...) thì không được xuất hiện trơn.

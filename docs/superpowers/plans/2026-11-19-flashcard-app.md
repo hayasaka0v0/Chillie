@@ -74,12 +74,12 @@ deck-store/                        index.json, decks/*.json (ở gốc repo)
 **Interfaces:**
 - Produces: `FlashcardTheme(content: @Composable () -> Unit)`; object `FlashcardColors` với `Background`, `Ink`, `InkMuted`, `Blush`, `Rose`, `White`; `NunitoFamily: FontFamily`.
 
-- [ ] **Step 1: Thêm plugin và thư viện**: KSP, Hilt (plugin + `hilt-android` + `hilt-compiler` qua `ksp`), `hilt-navigation-compose`, kotlinx-coroutines-test, MockK, Turbine (testImplementation). Bật `isCoreLibraryDesugaringEnabled = true` + `coreLibraryDesugaring(desugar_jdk_libs)`. Các thư viện còn lại thêm ở task cần đến chúng.
-- [ ] **Step 2: Xoá code cũ** liệt kê ở trên. `Flashcard.kt` giữ lại, Task 2 sẽ viết lại.
-- [ ] **Step 3: Theme**: `Color.kt` chứa `FlashcardColors`; `Type.kt` khai báo `NunitoFamily` (4 weight qua `FontVariation`) và `Typography` dùng nó; `Theme.kt` dùng `lightColorScheme(background = Background, surface = White, primary = Ink, onPrimary = Background, secondary = Rose, secondaryContainer = Blush, onBackground = Ink, onSurface = Ink, onSurfaceVariant = InkMuted)`, bỏ dark/dynamic.
-- [ ] **Step 4: Hilt**: thêm `@HiltAndroidApp` cho `FlashcardApplication` (bỏ `container`), `@AndroidEntryPoint` cho `MainActivity`. Tạm thời `setContent { FlashcardTheme { Text("Library") } }`.
-- [ ] **Step 5: Kiểm tra**: chạy `./gradlew assembleDebug testDebugUnitTest`. Kỳ vọng: BUILD SUCCESSFUL. Cài lên emulator: nền hồng nhạt, chữ "Library" font Nunito.
-- [ ] **Step 6: Cập nhật docs mục 26 + cây thư mục `CLAUDE.md`. Dừng cho hỏi đáp. Commit** `chore: set up Hilt, desugaring, design theme; remove old study stack`.
+- [x] **Step 1: Thêm plugin và thư viện**: KSP, Hilt (plugin + `hilt-android` + `hilt-compiler` qua `ksp`), `hilt-navigation-compose`, kotlinx-coroutines-test, MockK, Turbine (testImplementation). Bật `isCoreLibraryDesugaringEnabled = true` + `coreLibraryDesugaring(desugar_jdk_libs)`. Các thư viện còn lại thêm ở task cần đến chúng.
+- [x] **Step 2: Xoá code cũ** liệt kê ở trên. `Flashcard.kt` giữ lại, Task 2 sẽ viết lại.
+- [x] **Step 3: Theme**: `Color.kt` chứa `FlashcardColors`; `Type.kt` khai báo `NunitoFamily` (4 weight qua `FontVariation`) và `Typography` dùng nó; `Theme.kt` dùng `lightColorScheme(background = Background, surface = White, primary = Ink, onPrimary = Background, secondary = Rose, secondaryContainer = Blush, onBackground = Ink, onSurface = Ink, onSurfaceVariant = InkMuted)`, bỏ dark/dynamic.
+- [x] **Step 4: Hilt**: thêm `@HiltAndroidApp` cho `FlashcardApplication` (bỏ `container`), `@AndroidEntryPoint` cho `MainActivity`. Tạm thời `setContent { FlashcardTheme { Text("Library") } }`.
+- [x] **Step 5: Kiểm tra**: chạy `./gradlew assembleDebug testDebugUnitTest`. Kỳ vọng: BUILD SUCCESSFUL. Cài lên emulator: nền hồng nhạt, chữ "Library" font Nunito.
+- [x] **Step 6: Cập nhật docs mục 26 + cây thư mục `CLAUDE.md`. Dừng cho hỏi đáp. Commit** `chore: set up Hilt, desugaring, design theme; remove old study stack`.
 
 ### Task 2: Model domain + luật SM-2
 
@@ -101,7 +101,7 @@ deck-store/                        index.json, decks/*.json (ở gốc repo)
   - `enum class Answer { AGAIN, GOT_IT }`, `enum class SessionMode { NORMAL, PRACTICE }`
   - `object Sm2Scheduler { fun next(current: ReviewSchedule, answer: Answer, today: LocalDate): ReviewSchedule }`
 
-- [ ] **Step 1: Viết test (chưa chạy được)**
+- [x] **Step 1: Viết test (chưa chạy được)**
 
 ```kotlin
 // Sm2SchedulerTest — today = LocalDate.of(2026, 11, 19)
@@ -118,10 +118,10 @@ deck-store/                        index.json, decks/*.json (ở gốc repo)
 @Test fun encodeDecode_roundTrip() // Text("あ") và Icon(GLOBE) ; @Test fun decode_garbage_returnsQuestionMark()
 ```
 
-- [ ] **Step 2: Chạy** `./gradlew testDebugUnitTest`. Kỳ vọng: FAIL do chưa có class.
-- [ ] **Step 3: Viết model + `Sm2Scheduler.next`**. Ease mới = `max(1.3, ease + 0.1 - (5 - q) * (0.08 + (5 - q) * 0.02))` với q = 4 (Got it) hoặc 1 (Again). Got it: `reps + 1`; interval = 1 nếu reps mới = 1, 6 nếu = 2, còn lại `(interval * easeMới).roundToInt()`; `dueDate = today.plusDays(interval)`.
-- [ ] **Step 4: Chạy lại**. Kỳ vọng: PASS.
-- [ ] **Step 5: Docs mục 26, dừng hỏi đáp, commit** `feat(domain): models and SM-2 scheduler`.
+- [x] **Step 2: Chạy** `./gradlew testDebugUnitTest`. Kỳ vọng: FAIL do chưa có class.
+- [x] **Step 3: Viết model + `Sm2Scheduler.next`**. Ease mới = `max(1.3, ease + 0.1 - (5 - q) * (0.08 + (5 - q) * 0.02))` với q = 4 (Got it) hoặc 1 (Again). Got it: `reps + 1`; interval = 1 nếu reps mới = 1, 6 nếu = 2, còn lại `(interval * easeMới).roundToInt()`; `dueDate = today.plusDays(interval)`.
+- [x] **Step 4: Chạy lại**. Kỳ vọng: PASS.
+- [x] **Step 5: Docs mục 26, dừng hỏi đáp, commit** `feat(domain): models and SM-2 scheduler`.
 
 ### Task 3: Hàm tính số liệu
 

@@ -42,7 +42,6 @@
 27. [Bài tổng hợp: Flashcard core chạy được](#27-bài-tổng-hợp-flashcard-core-chạy-được)
 28. [Bảng tra nhanh Dart → Kotlin](#28-bảng-tra-nhanh-dart--kotlin)
 29. [Những cái bẫy hay dính](#29-những-cái-bẫy-hay-dính)
-30. [Lộ trình & bài tập](#30-lộ-trình--bài-tập)
 
 ---
 
@@ -1791,225 +1790,67 @@ Thêm thư viện theo kiểu version catalog: khai báo version ở `[versions]
 
 ## 26. Đọc code trong project
 
-Code hiện có trong `app/src/main/java/com/huyvu/flashcard/`, giải thích theo syntax.
+Code hiện có trong `app/src/main/java/com/huyvu/flashcard/`, cập nhật theo từng task của kế hoạch `docs/superpowers/plans/2026-11-19-flashcard-app.md`. Mỗi file: nó để làm gì, ai gọi nó, nó gọi ai.
 
-### `domain/model/Flashcard.kt`
-```kotlin
-data class Flashcard(
-    val id: Long,
-    val front: String,
-    val back: String,
-    val streak: Int = 0,
-)
+### Luồng khởi động app (sau Task 1)
+
 ```
-- `data class` → có sẵn `==`, `copy`, `toString` (phần 13).
-- Toàn `val` → immutable. Muốn đổi streak thì `card.copy(streak = 3)`.
-- `streak: Int = 0` → default parameter, tạo thẻ không cần truyền streak.
-- Dấu `,` sau tham số cuối → trailing comma, hợp lệ.
-
-### `domain/repository/FlashcardRepository.kt`
-```kotlin
-interface FlashcardRepository {
-    fun getCards(): Flow<List<Flashcard>>
-    suspend fun updateCard(card: Flashcard)
-}
+Bấm icon app
+   │
+   ▼
+Android tạo FlashcardApplication   (@HiltAndroidApp → Hilt dựng "kho linh kiện")
+   │
+   ▼
+Android mở MainActivity            (@AndroidEntryPoint → được lấy đồ từ kho Hilt)
+   │ onCreate → setContent { ... }
+   ▼
+FlashcardTheme { ... }             (gắn màu + font của thiết kế)
+   │
+   ▼
+Text("Library")                    (tạm thời; Task 6 thay bằng FlashcardNavHost)
 ```
-- `interface` không có thân hàm → abstract (≈ `abstract class` trong Dart).
-- `getCards()` trả `Flow` → stream dữ liệu, không cần `suspend` vì tạo Flow không tốn thời gian, chỉ `collect` mới tốn.
-- `updateCard` là `suspend` → phải gọi trong coroutine (phần 19).
 
-### `data/repository/InMemoryFlashcardRepository.kt`
-```kotlin
-class InMemoryFlashcardRepository : FlashcardRepository {      // `:` = implements
-    private val cards = MutableStateFlow(listOf(Flashcard(id = 1, ...), ...))
-
-    override fun getCards(): Flow<List<Flashcard>> = cards.asStateFlow()   // hàm 1 biểu thức
-
-    override suspend fun updateCard(card: Flashcard) {
-        cards.update { list -> list.map { if (it.id == card.id) card else it } }
-    }
-}
-```
-- `override` bắt buộc khi implement method interface.
-- `MutableStateFlow(listOf(...))` → kiểu tự suy là `MutableStateFlow<List<Flashcard>>`.
-- `cards.update { list -> ... }` → lambda nhận list cũ, trả list mới.
-- `list.map { if (it.id == card.id) card else it }` → `if` là biểu thức, thay thẻ có id trùng, giữ nguyên thẻ khác (phần 10, "Sửa một phần tử").
-
-### `domain/usecase/AnswerCardUseCase.kt`
-```kotlin
-class AnswerCardUseCase(private val repository: FlashcardRepository) {
-    suspend operator fun invoke(card: Flashcard, isCorrect: Boolean) {
-        val newStreak = if (isCorrect) card.streak + 1 else 0
-        repository.updateCard(card.copy(streak = newStreak))
-    }
-}
-```
-- `private val` trong constructor → property private, inject qua constructor.
-- `operator fun invoke` → gọi `answerCard(card, true)` như gọi hàm (≈ `call()` của Dart).
-- `suspend` vì gọi `updateCard` là suspend.
-
-### `di/AppContainer.kt`
-```kotlin
-val flashcardRepository: FlashcardRepository by lazy { InMemoryFlashcardRepository() }
-```
-- Kiểu khai báo là **interface**, giá trị là **class cụ thể** → nơi khác chỉ biết interface.
-- `by lazy` → chỉ tạo khi lần đầu dùng, sau đó dùng lại (≈ `registerLazySingleton` của get_it).
+### Gradle: `gradle/libs.versions.toml`, `app/build.gradle.kts`
+- `libs.versions.toml` là danh bạ thư viện: `[versions]` ghi số version, `[libraries]` đặt tên ngắn cho từng thư viện, `[plugins]` cho plugin Gradle.
+- Trong `app/build.gradle.kts`, `implementation(libs.hilt.android)` đọc tên ngắn từ danh bạ (dấu `-` trong tên đổi thành `.`).
+- `ksp(libs.hilt.compiler)`: KSP là công cụ đọc các chữ `@...` (annotation) lúc build và sinh thêm code. Hilt và Room đều cần nó.
+- `isCoreLibraryDesugaringEnabled = true` + `coreLibraryDesugaring(...)`: cho phép dùng `java.time` (`LocalDate`, `Instant`) trên Android 7 (minSdk 24), vốn chưa có sẵn mấy class này.
+- `testImplementation(...)`: thư viện chỉ dùng khi chạy unit test (MockK, Turbine, coroutines-test), không bị đóng vào app.
 
 ### `FlashcardApplication.kt`
 ```kotlin
-class FlashcardApplication : Application() {
-    val container: AppContainer by lazy { AppContainer() }
-}
+@HiltAndroidApp
+class FlashcardApplication : Application()
 ```
-- `: Application()` → kế thừa class (có `()` vì gọi constructor cha).
-- Class này được khai báo trong `AndroidManifest.xml` (`android:name`) nên Android tạo nó khi mở app.
-
-### `presentation/study/StudyUiState.kt`
-```kotlin
-data class StudyUiState(...) {
-    val currentCard: Flashcard? get() = cards.getOrNull(currentIndex)
-    val isFinished: Boolean get() = cards.isNotEmpty() && currentIndex >= cards.size
-}
-```
-- Computed property với `get()` → tính mỗi lần đọc, không lưu (≈ getter Dart).
-- `Flashcard?` → có thể null khi index vượt list; `getOrNull` không crash.
-- Property trong thân `{}` không tham gia `copy`/`equals`, đúng ý vì đây là giá trị suy ra.
-
-### `presentation/study/StudyViewModel.kt`
-```kotlin
-class StudyViewModel(
-    repository: FlashcardRepository,          // không có val → chỉ dùng trong init
-    private val answerCard: AnswerCardUseCase,
-) : ViewModel() {
-```
-- `repository` không có `val` vì chỉ cần dùng 1 lần trong `init`. `answerCard` có `private val` vì dùng trong `onAnswer`.
-
-```kotlin
-    private val _uiState = MutableStateFlow(StudyUiState())
-    val uiState: StateFlow<StudyUiState> = _uiState.asStateFlow()
-```
-- Backing property: trong sửa được, ngoài chỉ đọc (phần 11, 20).
-
-```kotlin
-    init {
-        viewModelScope.launch {
-            repository.getCards().collect { cards ->
-                _uiState.update { it.copy(cards = cards) }
-            }
-        }
-    }
-```
-- `init` chạy khi tạo ViewModel. `launch` mở coroutine. `collect` lắng nghe mãi (≈ `stream.listen`) đến khi ViewModel bị hủy.
-
-```kotlin
-    fun onFlip() = _uiState.update { it.copy(isFlipped = !it.isFlipped) }
-```
-- Hàm 1 biểu thức. `it` là state hiện tại, trả state mới.
-
-```kotlin
-    fun onAnswer(isCorrect: Boolean) {
-        val card = _uiState.value.currentCard ?: return      // Elvis + return: null thì thoát
-        viewModelScope.launch { answerCard(card, isCorrect) } // gọi operator invoke trong coroutine
-        _uiState.update { it.copy(currentIndex = it.currentIndex + 1, isFlipped = false) }
-    }
-```
-
-```kotlin
-    companion object {
-        val Factory = viewModelFactory {
-            initializer {
-                val container = (this[APPLICATION_KEY] as FlashcardApplication).container
-                StudyViewModel(container.flashcardRepository, container.answerCardUseCase)
-            }
-        }
-    }
-```
-- `companion object` → `StudyViewModel.Factory` dùng như static.
-- `viewModelFactory { initializer { ... } }` → DSL bằng trailing lambda lồng nhau. Dòng cuối của `initializer` là ViewModel trả về.
-- `this[APPLICATION_KEY]` → `this` là `CreationExtras`, toán tử `[]` lấy Application ra; `as` ép kiểu sang `FlashcardApplication`.
-
-### `presentation/study/StudyScreen.kt`
-```kotlin
-@Composable
-fun StudyScreen(
-    modifier: Modifier = Modifier,
-    viewModel: StudyViewModel = viewModel(factory = StudyViewModel.Factory),
-) {
-    val state by viewModel.uiState.collectAsStateWithLifecycle()
-    StudyContent(
-        state = state,
-        onFlip = viewModel::onFlip,       // function reference
-        onAnswer = viewModel::onAnswer,
-        onRestart = viewModel::onRestart,
-        modifier = modifier,
-    )
-}
-```
-- Default parameter là lời gọi hàm `viewModel(...)` → Kotlin cho phép default là biểu thức bất kỳ.
-- `val state by ...` → delegation, đọc `state` là lấy giá trị hiện tại, đổi thì vẽ lại.
-- `viewModel::onFlip` → truyền method làm callback (≈ `onTap: viewModel.onFlip` trong Dart).
-
-```kotlin
-fun StudyContent(
-    state: StudyUiState,
-    onFlip: () -> Unit,                    // ≈ VoidCallback
-    onAnswer: (isCorrect: Boolean) -> Unit, // ≈ void Function(bool isCorrect); tên tham số chỉ để đọc
-    ...
-```
-
-```kotlin
-        val card = state.currentCard
-        when {
-            state.isFinished -> { ... }
-            card == null -> Text("Chưa có thẻ nào")
-            else -> {
-                Text("... ${card.streak}")   // smart cast: tới đây card chắc chắn != null
-```
-- `when` không tham số = chuỗi if/else.
-- `card` là `val` local nên smart cast được sau khi nhánh `card == null` bị loại (phần 5).
-
-```kotlin
-                    Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                        OutlinedButton(onClick = { onAnswer(false) }) { Text("Sai rồi") }
-                        Button(onClick = { onAnswer(true) }) { Text("Đúng rồi!") }
-                    }
-```
-- `onClick = { onAnswer(false) }` → lambda bọc lời gọi (vì cần truyền tham số).
-- `{ Text(...) }` sau `)` → trailing lambda làm content.
+- Để làm gì: object sống suốt đời app; `@HiltAndroidApp` bật Hilt cho cả app.
+- Ai gọi: Android tự tạo, nhờ dòng `android:name=".FlashcardApplication"` trong `AndroidManifest.xml`.
+- `: Application()` = kế thừa class `Application` và gọi constructor rỗng của nó. Class không có thân `{ }` vẫn hợp lệ.
 
 ### `MainActivity.kt`
-```kotlin
-class MainActivity : ComponentActivity() {
-    override fun onCreate(savedInstanceState: Bundle?) {     // Bundle? = nullable
-        super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
-        setContent {                                         // ≈ runApp(...)
-            FlashcardTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    StudyScreen(modifier = Modifier.padding(innerPadding))
-                }
-            }
-        }
-    }
-}
-```
-- `Scaffold(...) { innerPadding -> ... }` → trailing lambda **có tham số**: Scaffold truyền padding (chừa chỗ status bar) vào cho content.
+- Để làm gì: cửa vào duy nhất; app chỉ có 1 Activity, mỗi màn hình là một hàm `@Composable`.
+- Ai gọi: Android, khi bấm icon app (intent-filter `MAIN`/`LAUNCHER` trong manifest).
+- Nó gọi: `FlashcardTheme`, rồi nội dung bên trong.
+- `override fun onCreate(savedInstanceState: Bundle?)`: `Bundle?` có dấu `?` nghĩa là có thể `null` (lần mở đầu tiên thì null).
+- `setContent { ... }`: `setContent` là hàm nhận một hàm khác làm tham số (higher-order function). Khối `{ ... }` là lambda được truyền vào; vì nó là tham số cuối nên viết ra ngoài, và bỏ luôn cặp `()`.
+- `Modifier.fillMaxSize().background(...)`: mỗi `.xxx()` trả về một Modifier mới đã thêm 1 "lệnh trang trí"; thứ tự có ý nghĩa (phần 29).
 
-### `test/.../AnswerCardUseCaseTest.kt`
-```kotlin
-@Test
-fun correctAnswer_increasesStreak() = runBlocking {   // chạy coroutine đồng bộ trong test
-    answerCard(firstCard(), isCorrect = true)
-    assertEquals(2, firstCard().streak)
-}
+### `presentation/theme/Color.kt`
+- `object FlashcardColors { val Background = Color(0xFFFFF5F5) ... }`: `object` là class chỉ có đúng một bản, dùng thẳng `FlashcardColors.Ink`.
+- `0xFFFFF5F5`: số hệ 16; `FF` đầu là độ đục, `FFF5F5` là mã màu trong thiết kế.
 
-private suspend fun firstCard() = repository.getCards().first().first()
-```
-- `= runBlocking { }` → hàm 1 biểu thức, thân là coroutine.
-- `.first().first()`: `first()` thứ nhất là của **Flow** (lấy list đầu tiên phát ra, suspend), `first()` thứ hai là của **List** (lấy thẻ đầu).
-- Chạy test: chuột phải file → Run, hoặc `./gradlew test`.
+### `presentation/theme/Type.kt`
+- `res/font/nunito.ttf` là variable font: một file chứa mọi độ đậm. `nunito(weight)` lấy ra một độ đậm.
+- `@OptIn(ExperimentalTextApi::class)`: annotation (nhãn dán cho trình biên dịch đọc) báo rằng mình đồng ý dùng API còn "thử nghiệm".
+- `private val materialDefault = Typography()`: bộ kiểu chữ mặc định của Material 3.
+- `materialDefault.copy(displayLarge = ..., ...)`: `Typography` không sửa được (toàn `val`), nên `copy` tạo bản MỚI; chỉ những ô được nhắc tên mới đổi, còn lại giữ như bản gốc. `displayLarge = ...` ở đây là **named argument** (truyền đối số theo tên), không phải phép gán.
+- `useNunito(style)`: nhận một `TextStyle`, trả về bản copy đã đổi `fontFamily`.
 
----
+### `presentation/theme/Theme.kt`
+- `lightColorScheme(...)`: gán màu thiết kế vào các "vai" của Material 3 (`primary`, `background`...), để nút và ô nhập tự lấy đúng màu.
+- `fun FlashcardTheme(content: @Composable () -> Unit)`: kiểu `() -> Unit` = "một hàm không nhận gì, không trả gì"; nhãn `@Composable` thêm điều kiện "hàm đó được phép vẽ giao diện". Bên trong chỉ chuyền `content` cho `MaterialTheme(content = content)`, không gọi nó; `MaterialTheme` sẽ tự gọi `content()` khi vẽ.
+
+### `domain/model/Flashcard.kt`
+- Bản cũ (`id`, `front`, `back`, `streak`), chưa được dùng. Task 2 viết lại theo bản thiết kế.
 
 ## 27. Bài tổng hợp: Flashcard core chạy được
 
@@ -2289,30 +2130,3 @@ Bài tập trên đoạn code này:
 18. **Thứ tự Modifier** có ý nghĩa: padding trước hay background trước cho kết quả khác.
 19. **Hot reload**: Compose có *Live Edit* / *Apply Changes* nhưng không mạnh như Flutter. Đổi cấu trúc class/ViewModel thường phải chạy lại app. Dùng `@Preview` để xem UI nhanh.
 20. **Gradle sync**: sửa `build.gradle.kts` / `libs.versions.toml` xong phải Sync thì mới có thư viện.
-
----
-
-## 30. Lộ trình & bài tập
-
-**Tuần 1 — Kotlin thuần (Playground/Scratch File)**
-- Phần 1–10. Bài tập: viết hàm nhận `List<String>` dạng `"front|back"`, parse thành `List<Flashcard>`, bỏ dòng sai format (dùng `split`, `mapNotNull`, `toIntOrNull`, `trim`).
-- Phần 11–18. Bài tập: chạy và chỉnh bài tổng hợp ở phần 27.
-
-**Tuần 2 — Coroutines + đọc hiểu project**
-- Phần 19–20. Bài tập: trong `main = runBlocking`, viết `fun fakeLoad(): Flow<List<Flashcard>>` phát 3 lần cách nhau 500ms, `collect` và in số thẻ.
-- Đọc lại phần 26 với từng file thật mở bên cạnh. Chạy `AnswerCardUseCaseTest`.
-
-**Tuần 3 — Tính năng cho app (theo thứ tự)**
-1. Màn **danh sách thẻ**: `LazyColumn` hiển thị tất cả thẻ + streak.
-2. Màn **thêm/sửa thẻ**: 2 `OutlinedTextField` + nút Lưu → thêm `addCard`/`deleteCard` vào `FlashcardRepository`.
-3. **Navigation Compose**: chuyển giữa Danh sách / Học / Thêm thẻ.
-4. **Room**: thay `InMemoryFlashcardRepository` bằng `RoomFlashcardRepository` → tắt app không mất dữ liệu.
-5. **Deck**: nhiều bộ thẻ (bảng `decks` + `deckId` trong `cards`).
-6. **Ôn tập ngắt quãng**: thay `streak` bằng `ease/interval/dueAt` như phần 27, chỉ học thẻ đến hạn.
-7. (Tùy chọn) Import/Export CSV, thống kê, dark mode, Hilt.
-
-Tài liệu chính thức:
-- Kotlin Tour: https://kotlinlang.org/docs/kotlin-tour-welcome.html
-- Kotlin Koans (bài tập tương tác): https://play.kotlinlang.org/koans
-- Compose cho dev Flutter: https://developer.android.com/develop/ui/compose/flutter-for-compose (nếu link đổi thì search "Jetpack Compose for Flutter developers")
-- Compose basics codelab: https://developer.android.com/courses/jetpack-compose/course

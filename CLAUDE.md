@@ -54,9 +54,14 @@ app/src/
 ├── main/java/com/huyvu/flashcard/
 │   ├── FlashcardApplication.kt   ← @HiltAndroidApp, sống suốt app
 │   ├── MainActivity.kt           ← @AndroidEntryPoint, điểm vào, setContent { FlashcardTheme { ... } }
-│   ├── domain/model/Flashcard.kt ← bản cũ, Task 2 viết lại
+│   ├── domain/                   ← Kotlin thuần, không phụ thuộc Android
+│   │   ├── model/Flashcard.kt, Deck.kt, ReviewLog.kt  ← data class dữ liệu
+│   │   ├── model/ReviewSchedule.kt   ← lịch ôn SM-2 của 1 thẻ + CardStatus, status(), isDue()
+│   │   ├── model/Emblem.kt           ← sealed Text | Icon, encode()/decodeEmblem()
+│   │   ├── model/StudyTypes.kt       ← enum Answer, SessionMode
+│   │   └── srs/Sm2Scheduler.kt       ← luật SM-2: next(lịch, answer, hôm nay)
 │   └── presentation/theme/Color.kt, Type.kt, Theme.kt  ← màu + font Nunito của thiết kế, chỉ giao diện sáng
-├── test/java/com/huyvu/flashcard/ ← unit test chạy trên JVM (hiện chỉ có file mẫu)
+├── test/java/com/huyvu/flashcard/ ← unit test chạy trên JVM: domain/srs/Sm2SchedulerTest, domain/model/ReviewScheduleTest, EmblemTest
 └── androidTest/                 ← test cần máy/emulator (hiện chỉ có file mẫu)
 ```
 

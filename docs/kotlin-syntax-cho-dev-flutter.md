@@ -1849,8 +1849,52 @@ class FlashcardApplication : Application()
 - `lightColorScheme(...)`: gán màu thiết kế vào các "vai" của Material 3 (`primary`, `background`...), để nút và ô nhập tự lấy đúng màu.
 - `fun FlashcardTheme(content: @Composable () -> Unit)`: kiểu `() -> Unit` = "một hàm không nhận gì, không trả gì"; nhãn `@Composable` thêm điều kiện "hàm đó được phép vẽ giao diện". Bên trong chỉ chuyền `content` cho `MaterialTheme(content = content)`, không gọi nó; `MaterialTheme` sẽ tự gọi `content()` khi vẽ.
 
-### `domain/model/Flashcard.kt`
-- Bản cũ (`id`, `front`, `back`, `streak`), chưa được dùng. Task 2 viết lại theo bản thiết kế.
+### `domain/` (Task 2): Kotlin thuần, không phụ thuộc Android
+
+Ai dùng: sau này repository (Task 4), use case (Task 5) và các ViewModel. Hiện mới chỉ có unit test gọi tới.
+
+```
+Flashcard ──có một──► ReviewSchedule ──status()──► CardStatus (NEW / LEARNING / MASTERED)
+    │                       ▲          ──isDue(today)──► Boolean
+    │ deckId                │
+    ▼                       │ Sm2Scheduler.next(lịch cũ, Answer, hôm nay) → lịch MỚI (copy)
+  Deck ──có một──► Emblem (Text "あ" | Icon GLOBE) ⇄ chuỗi "text:あ" / "icon:globe"
+    ▲
+    │ deckId, cardId
+ReviewLog (ôn lúc nào, đúng/sai)
+```
+
+#### `domain/model/StudyTypes.kt`
+- `enum class Answer { AGAIN, GOT_IT }`: kiểu chỉ có đúng các giá trị liệt kê.
+- `SessionMode`: `NORMAL` chấm thật; `PRACTICE` học thử, không đổi lịch ôn.
+
+#### `domain/model/ReviewSchedule.kt`
+- `data class` với giá trị mặc định: `ReviewSchedule()` = lịch của thẻ mới.
+- `dueDate: LocalDate?`: dấu `?` cho phép `null`; `null` = thẻ chưa ôn lần nào (New).
+- `fun status()`: hàm thành viên; `when { ... }` không có biến sau `when` thì thử từng điều kiện từ trên xuống.
+- `val due = dueDate ?: return true`: toán tử Elvis `?:`, "bên trái null thì làm bên phải".
+- `companion object { const val MASTERED_INTERVAL_DAYS = 21 }`: hằng số thuộc về cả class, gọi `ReviewSchedule.MASTERED_INTERVAL_DAYS`.
+
+#### `domain/model/Flashcard.kt`, `Deck.kt`, `ReviewLog.kt`
+- Ba `data class` chỉ chứa dữ liệu. `id = 0` = chưa lưu vào database.
+- `Instant`: một thời điểm chính xác, không phụ thuộc múi giờ. `LocalDate`: một ngày lịch (không có giờ).
+
+#### `domain/model/Emblem.kt`
+- `sealed interface Emblem` + 2 kiểu con `Text`, `Icon`: Emblem chỉ có thể là một trong hai.
+- `fun Emblem.encode()`: extension function; `when (this) { is Emblem.Text -> value ... }`: `is` kiểm tra kiểu; trong nhánh đó Kotlin tự coi `this` là `Text` (smart cast) nên đọc được `value`. Không cần `else` vì sealed.
+- `enum class EmblemIcon(val key: String)`: enum có thuộc tính; `EmblemIcon.entries` = danh sách mọi giá trị.
+- `EmblemIcon.entries.firstOrNull { it.key == rest }`: `firstOrNull` nhận lambda `(EmblemIcon) -> Boolean`, gọi lần lượt với từng icon (tham số `it`), trả về icon đầu tiên làm lambda ra `true`, không có thì `null`.
+
+#### `domain/srs/Sm2Scheduler.kt`
+- `object`: một bản duy nhất, gọi `Sm2Scheduler.next(...)`; là hàm thuần (cùng đầu vào → cùng kết quả).
+- Got it: lần 1 → 1 ngày, lần 2 → 6 ngày, sau đó `interval × ease` làm tròn (`roundToInt()`, 37.5 → 38).
+- Again: về 0, đến hạn hôm nay, `lapses + 1`, ease giảm 0.54 nhưng không dưới 1.3.
+- Trả về `current.copy(...)`, không sửa `current`.
+
+#### Test: `app/src/test/.../domain/`
+- `@Test` đánh dấu hàm kiểm tra; `assertEquals(mongDoi, thucTe)`; số thực so với sai số: `assertEquals(1.96, x, 1e-9)`.
+- Tên hàm trong dấu `` ` `` được phép có dấu cách: `` fun `again resets the card`() ``.
+- Chạy: `./gradlew testDebugUnitTest`.
 
 ## 27. Bài tổng hợp: Flashcard core chạy được
 
